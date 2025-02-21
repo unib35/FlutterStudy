@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'my_home_page.dart';
+import 'auth_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +17,7 @@ void main() async {
     // Firebase Firestore Emulator 사용
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
     FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+    FirebaseStorage.instance.useStorageEmulator('localhost', 9099);
   }
 
   runApp(const MyApp());
@@ -28,47 +31,40 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(fontSize: 20.0),
+          bodyMedium: TextStyle(fontSize: 15.0),
+          bodySmall: TextStyle(fontSize: 10.0),
+          labelLarge: TextStyle(fontSize: 20.0),
+          labelMedium: TextStyle(fontSize: 15.0),
+          labelSmall: TextStyle(fontSize: 10.0),
+        ),
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const AuthScreen(),
+      home: const AuthWrapper(),
     );
   }
 }
 
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
-
-  @override
-  State<AuthScreen> createState() => _AuthScreenState();
-}
-
-class _AuthScreenState extends State<AuthScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+// 로그인 상태에 따라 화면을 전환하는 위젯
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Firebase Auth Sign In')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: () {}, child: const Text('로그인')),
-            ElevatedButton(onPressed: () {}, child: const Text('회원가입')),
-          ],
-        ),
-      ),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (BuildContext context, AsyncSnapshot<User?> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+
+        if (snapshot.hasData) {
+          return const MyHomePage(title: 'Flutter Demo Home Page');
+        }
+
+        return const AuthScreen();
+      },
     );
   }
 }
