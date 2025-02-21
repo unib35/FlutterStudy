@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,8 +8,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // Firebase Firestore Emulator 사용
-  FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  // 디버그 모드일 때만 에뮬레이터 사용
+  if (kDebugMode) {
+    // Firebase Firestore Emulator 사용
+    FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+    FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+  }
 
   runApp(const MyApp());
 }
@@ -38,28 +44,13 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _collectionName = 'counter';
+  final String _collectionName = 'counters';
   final String _documentId = 'my_counter_id';
 
-  /// **Firestore에 카운터 값이 없으면 0으로 초기화하고 증가시킴**
-  Future<void> _incrementCounter() async {
-    final docRef = _firestore.collection(_collectionName).doc(_documentId);
-
-    try {
-      final docSnapshot = await docRef.get();
-
-      if (!docSnapshot.exists) {
-        // 문서가 없으면 초기값 1로 설정
-        await docRef.set({'counter': 1});
-        print('✅ Firestore 문서 생성: counter = 1');
-      } else {
-        // 문서가 있으면 기존 값에서 1 증가
-        await docRef.update({'counter': FieldValue.increment(1)});
-        print('✅ Firestore 문서 업데이트: counter +1');
-      }
-    } catch (e) {
-      print('❌ Firestore 업데이트 오류: $e');
-    }
+  void _incrementCounter() {
+    _firestore.collection(_collectionName).doc(_documentId).update({
+      'counter': FieldValue.increment(1),
+    });
   }
 
   @override
@@ -93,13 +84,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   return const CircularProgressIndicator();
                 }
 
-                if (!snapshot.hasData || !snapshot.data!.exists) {
-                  return const Text('Counter does not exist');
+                if (!snapshot.hasData) {
+                  return const Text('Document does not exist');
                 }
 
-                final data = snapshot.data!.data() as Map<String, dynamic>?;
+                final data = snapshot.data!.data() as Map<String, dynamic>;
 
-                if (data == null || !data.containsKey('counter')) {
+                // 도큐먼트 데이터에 counter 변수가 있는지 확인
+                if (!data.containsKey('counter')) {
                   return const Text('Counter does not exist');
                 }
 
@@ -118,7 +110,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
-      ),
+      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
